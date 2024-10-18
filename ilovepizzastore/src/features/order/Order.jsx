@@ -1,12 +1,15 @@
 /* eslint-disable react-refresh/only-export-components */
 
-import { useLoaderData } from "react-router-dom";
+import { useFetcher, useLoaderData } from "react-router-dom";
 import { getOrder } from "../../services/apiRestaurant";
+import OrderItem from "./OrderItem";
 import {
   calcMinutesLeft,
   formatCurrency,
   formatDate,
 } from "../../utils/helpers";
+import { useEffect } from "react";
+import UpdateOrder from "./UpdateOrder";
 
 function Order() {
   const order = useLoaderData();
@@ -21,31 +24,69 @@ function Order() {
   } = order;
   const deliveryIn = calcMinutesLeft(estimatedDelivery);
 
-  return (
-    <div>
-      <div>
-        <h2>Status</h2>
+  const fetcher = useFetcher();
 
-        <div>
-          {priority && <span>Priority</span>}
-          <span>{status} order</span>
+  useEffect(() => {
+    if (!fetcher.data && fetcher.state === "idle") fetcher.load("/menu");
+  }, [fetcher]);
+
+  return (
+    <div className='px-4 py-6 space-y-8'>
+      <div className='flex flex-wrap items-center gap-2 justify-between'>
+        <h2 className='text-xl font-semibold'>Order #{id} Status</h2>
+
+        <div className='space-x-2'>
+          {priority && (
+            <span className='rounded-full bg-red-500 px-3 py-1 text-sm font-semibold uppercase tracking-wide text-red-50'>
+              Priority
+            </span>
+          )}
+          <span className='rounded-full bg-green-500 px-3 py-1 text-sm font-semibold uppercase tracking-wide text-green-50'>
+            {status} order
+          </span>
         </div>
       </div>
 
-      <div>
-        <p>
+      <div className='flex flex-wrap items-center gap-2 justify-between bg-stone-200 px-6 py-5'>
+        <p className='font-medium'>
           {deliveryIn >= 0
             ? `Only ${calcMinutesLeft(estimatedDelivery)} minutes left 😃`
             : "Order should have arrived"}
         </p>
-        <p>(Estimated delivery: {formatDate(estimatedDelivery)})</p>
+        <p className='text-xs text-stone-500'>
+          (Estimated delivery: {formatDate(estimatedDelivery)})
+        </p>
       </div>
 
-      <div>
-        <p>Price pizza: {formatCurrency(orderPrice)}</p>
-        {priority && <p>Price priority: {formatCurrency(priorityPrice)}</p>}
-        <p>To pay on delivery: {formatCurrency(orderPrice + priorityPrice)}</p>
+      <ul className='divide-stone-200 divide-y border-b border-t'>
+        {cart.map((item) => (
+          <OrderItem
+            key={item.pizzaId}
+            item={item}
+            isLoadingIngredients={fetcher.state === "loading"}
+            ingredients={
+              fetcher?.data?.find((el) => el.id === item.pizzaId)
+                ?.ingredients ?? []
+            }
+          />
+        ))}
+      </ul>
+
+      <div className='space-y-2 bg-stone-200 px-6 py-5'>
+        <p className='text-sm font-medium text-stone-600'>
+          Price pizza: {formatCurrency(orderPrice)}
+        </p>
+        {priority && (
+          <p className='text-sm font-medium text-stone-600'>
+            Price priority: {formatCurrency(priorityPrice)}
+          </p>
+        )}
+        <p className='font-bold'>
+          To pay on delivery: {formatCurrency(orderPrice + priorityPrice)}
+        </p>
       </div>
+
+      {!priority && <UpdateOrder order={order} />}
     </div>
   );
 }
